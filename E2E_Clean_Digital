@@ -1,0 +1,224 @@
+WITH RegionCleanse AS (SELECT DISTINCT RegionF,RegionR
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Cleanse WHERE RegionF <> ''),
+
+CountryCleanse AS (SELECT DISTINCT CountryF,CountryR
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Cleanse WHERE CountryF <> ''),
+
+ProductCleanse AS (SELECT DISTINCT ProdF,ProdRDigi AS ProdR
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Cleanse WHERE ProdF <> ''),
+
+B2B_Cluster AS (
+SELECT DISTINCT Country,Cluster
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+),
+CTE AS (
+SELECT * EXCEPT(RegionF,RegionR,Region,CountryF,Country,CountryR,ProdF,ProdR,Product,Cluster--,ClusterR
+), 
+CASE WHEN RegionF IS NULL THEN REGION ELSE RegionR END AS Region,
+CASE WHEN CountryF IS NULL THEN Country ELSE CountryCleanse.CountryR END AS Country,
+CASE WHEN ProdF IS NULL THEN Product ELSE ProdR END AS Product,
+Product AS Product_SubCategory,
+Cluster,
+FROM irm-fin-acct-dp-prod.IYR_Process.E2E_ln AS E2E 
+LEFT JOIN RegionCleanse ON E2E.Region=RegionCleanse.RegionF
+LEFT JOIN CountryCleanse ON E2E.Country=CountryCleanse.CountryF
+LEFT JOIN ProductCleanse ON E2E.Product=ProductCleanse.ProdF
+),
+E2E AS (SELECT Region,
+Cluster,
+Country,
+'Digital' AS BU,
+Product,
+Product_SubCategory,
+'Service' AS StoSer,
+'Region' AS Segment,
+'Non-recurring' AS RNR,
+SalesForce_ID AS Opp_ID,
+CASE WHEN TOTAL < 25000 then "< $25k"
+WHEN TOTAL >= 25000 and TOTAL <= 250000 then "$25k - $250k"
+WHEN TOTAL > 250000 and TOTAL <= 1000000 then "$250k - $1m"
+ELSE "> $1m" END AS Deal_Size,
+Site,
+Customer_ID,
+Project,
+Project_Type,
+Jan_2024,
+Feb_2024,
+Mar_2024,
+Apr_2024,
+May_2024,
+Jun_2024,
+Jul_2024,
+Aug_2024,
+Sep_2024,
+Oct_2024,
+Nov_2024,
+Dec_2024,
+
+Jan_2025,
+Feb_2025,
+Mar_2025,
+Apr_2025,
+May_2025,
+Jun_2025,
+Jul_2025,
+Aug_2025,
+Sep_2025,
+Oct_2025,
+Nov_2025,
+Dec_2025,
+TOTAL
+FROM CTE),
+B2B AS (
+SELECT *, CASE WHEN SAFE_CAST(LEFT(Stage,1) AS INT) > 4 THEN TRUE ELSE FALSE END AS Join_Flag FROM(  
+SELECT Opp_ID,Country,Product,RNR,Segment,Deal_Size,Stage,ROW_NUMBER() OVER (PARTITION BY Opp_ID,Country,Product) as row_num
+FROM irm-fin-acct-dp-prod.IYR_Process.B2B_Clean_Digital
+WHERE Product <> 'ALM' AND Product <> 'IMDC' AND Product <> 'ITRenew' AND Forecast_Category <> 'Omitted'
+AND (Stage <> '1 - Qualification' OR (Cluster = 'EMEA: MENATSA' AND Product <> 'MAS'))
+)
+WHERE row_num = 1),
+
+FIRST_JOIN AS (SELECT 
+Region,
+B2B_Cluster.Cluster,
+E2E.Country,
+BU,
+E2E.Product,
+Product_SubCategory,
+StoSer,
+CASE WHEN B2B.Segment IS NULL THEN E2E.Segment ELSE B2B.Segment END AS Segment,
+CASE WHEN B2B.RNR IS NULL THEN E2E.RNR ELSE B2B.RNR END AS RNR,
+E2E.Opp_ID,
+CASE WHEN B2B.Deal_Size IS NULL THEN E2E.Deal_Size ELSE B2B.Deal_Size END AS Deal_Size,
+Site,
+Customer_ID,
+Project,
+Project_Type,
+Jan_2024,
+Feb_2024,
+Mar_2024,
+Apr_2024,
+May_2024,
+Jun_2024,
+Jul_2024,
+Aug_2024,
+Sep_2024,
+Oct_2024,
+Nov_2024,
+Dec_2024,
+
+Jan_2025,
+Feb_2025,
+Mar_2025,
+Apr_2025,
+May_2025,
+Jun_2025,
+Jul_2025,
+Aug_2025,
+Sep_2025,
+Oct_2025,
+Nov_2025,
+Dec_2025,
+TOTAL,
+ifnull(B2B.Join_Flag,FALSE) AS Join_Flag,
+CASE WHEN B2B.Join_Flag = True THEN 'Match Opp ID, Country, Prod'
+WHEN E2E.Opp_ID IN (SELECT DISTINCT Opp_ID FROM irm-fin-acct-dp-prod.IYR_Process.B2B_Clean_Digital) THEN 'Match Opp ID' ELSE 'No Match' END AS E2E_Match
+FROM E2E LEFT JOIN B2B ON E2E.Country = B2B.Country AND E2E.Opp_ID=B2B.Opp_ID AND E2E.Product = B2B.Product LEFT JOIN B2B_Cluster ON E2E.Country=B2B_Cluster.Country
+)
+SELECT 
+Region,
+Cluster,
+Country,
+BU,
+Product,
+Product_SubCategory,
+StoSer,
+Segment,
+RNR,
+CONCAT(Opp_ID,'-',Country,'-',Product,'-',StoSer,'-',RNR,'-',Deal_Size) AS UID,--CONCAT(Opp_ID,'-',Country,'-',Product,'-',StoSer,'-',Segment,'-',RNR,'-',Deal_Size) AS UID
+Opp_ID,
+Deal_Size,
+Site,
+Customer_ID,
+Project,
+Project_Type,
+Jan_2024 AS EE1_Jan,
+Feb_2024 AS EE1_Feb,
+Mar_2024 AS EE1_Mar,
+Apr_2024 AS EE1_Apr,
+May_2024 AS EE1_May,
+Jun_2024 AS EE1_Jun,
+Jul_2024 AS EE1_Jul,
+Aug_2024 AS EE1_Aug,
+Sep_2024 AS EE1_Sep,
+Oct_2024 AS EE1_Oct,
+Nov_2024 AS EE1_Nov,
+Dec_2024 AS EE1_Dec,
+IFNULL(Jan_2024,0)+
+IFNULL(Feb_2024,0)+
+IFNULL(Mar_2024,0)+
+IFNULL(Apr_2024,0)+
+IFNULL(May_2024,0)+
+IFNULL(Jun_2024,0)+
+IFNULL(Jul_2024,0)+
+IFNULL(Aug_2024,0)+
+IFNULL(Sep_2024,0)+
+IFNULL(Oct_2024,0)+
+IFNULL(Nov_2024,0)+
+IFNULL(Dec_2024,0) AS EE1_FY,
+
+Jan_2025 AS EE2_Jan,
+Feb_2025 AS EE2_Feb,
+Mar_2025 AS EE2_Mar,
+Apr_2025 AS EE2_Apr,
+May_2025 AS EE2_May,
+Jun_2025 AS EE2_Jun,
+Jul_2025 AS EE2_Jul,
+Aug_2025 AS EE2_Aug,
+Sep_2025 AS EE2_Sep,
+Oct_2025 AS EE2_Oct,
+Nov_2025 AS EE2_Nov,
+Dec_2025 AS EE2_Dec,
+IFNULL(Jan_2025,0)+
+IFNULL(Feb_2025,0)+
+IFNULL(Mar_2025,0)+
+IFNULL(Apr_2025,0)+
+IFNULL(May_2025,0)+
+IFNULL(Jun_2025,0)+
+IFNULL(Jul_2025,0)+
+IFNULL(Aug_2025,0)+
+IFNULL(Sep_2025,0)+
+IFNULL(Oct_2025,0)+
+IFNULL(Nov_2025,0)+
+IFNULL(Dec_2025,0) AS EE2_FY,
+TOTAL,
+Join_Flag,
+E2E_Match,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM FIRST_JOIN
+WHERE Region <> ' Total : ' AND 
+ABS(IFNULL(Jan_2024,0))+
+ABS(IFNULL(Feb_2024,0))+
+ABS(IFNULL(Mar_2024,0))+
+ABS(IFNULL(Apr_2024,0))+
+ABS(IFNULL(May_2024,0))+
+ABS(IFNULL(Jun_2024,0))+
+ABS(IFNULL(Jul_2024,0))+
+ABS(IFNULL(Aug_2024,0))+
+ABS(IFNULL(Sep_2024,0))+
+ABS(IFNULL(Oct_2024,0))+
+ABS(IFNULL(Nov_2024,0))+
+ABS(IFNULL(Dec_2024,0))+
+
+ABS(IFNULL(Jan_2025,0))+
+ABS(IFNULL(Feb_2025,0))+
+ABS(IFNULL(Mar_2025,0))+
+ABS(IFNULL(Apr_2025,0))+
+ABS(IFNULL(May_2025,0))+
+ABS(IFNULL(Jun_2025,0))+
+ABS(IFNULL(Jul_2025,0))+
+ABS(IFNULL(Aug_2025,0))+
+ABS(IFNULL(Sep_2025,0))+
+ABS(IFNULL(Oct_2025,0))+
+ABS(IFNULL(Nov_2025,0))+
+ABS(IFNULL(Dec_2025,0)) <> 0
