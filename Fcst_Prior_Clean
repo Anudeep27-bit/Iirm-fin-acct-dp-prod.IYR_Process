@@ -1,0 +1,118 @@
+WITH Country_lookup AS (
+SELECT DISTINCT Country,Cluster,Region
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE Country IS NOT NULL
+),
+BU_lookup AS (
+SELECT DISTINCT Product,BU
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE Product IS NOT NULL
+),
+Product_cleanse AS (
+  SELECT DISTINCT ProdF,ProdR
+  FROM irm-fin-acct-dp-prod.IYR_Process.CC_Cleanse
+  WHERE ProdF IS NOT NULL
+)
+SELECT
+--CASE WHEN Bud.Region = 'MAS' THEN 'MAS' ELSE CL.Region END AS Region,
+--CL.Cluster,
+Bud.Region,
+Bud.Cluster,
+Bud.Country,
+CASE WHEN bud.Region = 'MAS' THEN 'Core' ELSE Bu_Lookup.BU END AS BU,
+CASE WHEN bud.Region = 'MAS' THEN 'MAS' 
+WHEN PRC.ProdR IS NULL THEN Bud.product ELSE PRC.ProdR END AS Product,
+--Bud.product,
+StoSer,
+CASE WHEN Segment = 'Regional' THEN 'Region' ELSE Segment END AS Segment,
+CASE WHEN LOWER(ProductDetail) LIKE '%non-recurring%' THEN 'Non-recurring'
+WHEN LOWER(ProductDetail) LIKE '%recurring%' AND LOWER(ProductDetail) NOT LIKE '%non-recurring%' THEN 'Recurring'
+WHEN StoSer = 'Storage' THEN 'Recurring'
+WHEN StoSer = 'Service' THEN 'Non-recurring' END AS RNR,
+Jan,
+Feb,
+Mar,
+Apr,
+May,
+Jun,
+Jul,
+Aug,
+Sep,
+Oct,
+Nov,
+Dec,
+IFNULL(Jan,0)+IFNULL(Feb,0)+IFNULL(Mar,0)+IFNULL(Apr,0)+IFNULL(May,0)+IFNULL(Jun,0)+IFNULL(Jul,0)+IFNULL(Aug,0)+IFNULL(Sep,0)+IFNULL(Oct,0)+IFNULL(Nov,0)+IFNULL(Dec,0) AS FY,
+ProductDetail,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM irm-fin-acct-dp-prod.IYR_Process.Fcst_Prior_In AS Bud
+LEFT JOIN Country_lookup AS CL ON Bud.Country = CL.country
+LEFT JOIN Product_cleanse AS PRC ON PRC.ProdF = Bud.Product
+LEFT JOIN BU_lookup ON PRC.ProdR = BU_Lookup.Product
+WHERE Bud.Region NOT IN ('EMEA','NA','LATAM','MAS')
+
+
+UNION ALL
+
+SELECT 
+Region,
+Cluster,
+Country,
+BU,
+Product,
+StoSer,
+Segment,
+RNR,
+Jan_24,
+Feb_24,
+Mar_24,
+Apr_24,
+May_24,
+Jun_24,
+Jul_24,
+Aug_24,
+Sep_24,
+Oct_24,
+Nov_24,
+Dec_24,
+Total_2024,
+Memo,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM irm-fin-acct-dp-prod.IYR_Process.Fcst_Prior_EMEA_In_Snap
+
+
+
+UNION ALL
+
+SELECT
+Bud.Region,
+Bud.Cluster,
+Bud.Country,
+CASE WHEN bud.Region = 'MAS' THEN 'Core' ELSE Bu_Lookup.BU END AS BU,
+CASE WHEN bud.Region = 'MAS' THEN 'MAS' 
+WHEN PRC.ProdR IS NULL THEN Bud.product ELSE PRC.ProdR END AS Product,
+--Bud.product,
+StoSer,
+CASE WHEN Segment = 'Regional' THEN 'Region' ELSE Segment END AS Segment,
+CASE WHEN LOWER(ProductDetail) LIKE '%non-recurring%' THEN 'Non-recurring'
+WHEN LOWER(ProductDetail) LIKE '%recurring%' AND LOWER(ProductDetail) NOT LIKE '%non-recurring%' THEN 'Recurring'
+WHEN StoSer = 'Storage' THEN 'Recurring'
+WHEN StoSer = 'Service' THEN 'Non-recurring' END AS RNR,
+Jan,
+Feb,
+Mar,
+Apr,
+May,
+Jun,
+Jul,
+Aug,
+Sep,
+Oct,
+Nov,
+Dec,
+IFNULL(Jan,0)+IFNULL(Feb,0)+IFNULL(Mar,0)+IFNULL(Apr,0)+IFNULL(May,0)+IFNULL(Jun,0)+IFNULL(Jul,0)+IFNULL(Aug,0)+IFNULL(Sep,0)+IFNULL(Oct,0)+IFNULL(Nov,0)+IFNULL(Dec,0) AS FY,
+ProductDetail,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM irm-fin-acct-dp-prod.IYR_Process.Fcst_Prior_AMERICA_In AS Bud
+LEFT JOIN Country_lookup AS CL ON Bud.Country = CL.country
+LEFT JOIN Product_cleanse AS PRC ON PRC.ProdF = Bud.Product
+LEFT JOIN BU_lookup ON PRC.ProdR = BU_Lookup.Product
