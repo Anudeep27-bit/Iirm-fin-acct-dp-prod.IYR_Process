@@ -1,0 +1,39 @@
+WITH Country_Lookup AS (
+SELECT DISTINCT Region,Cluster,Country
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE REGION <> 'IMES' AND Country IS NOT NULL
+),
+BU_Lookup AS (
+SELECT DISTINCT Product,BU
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE Product IS NOT NULL
+)
+SELECT 
+CASE WHEN 
+Ass.Product_Class = 'IMES' THEN 'IMES' ELSE Country_Lookup.Region END AS Region,
+Country_Lookup.Cluster,
+Ass.Country,
+CASE WHEN Ass.Product_Class = 'Iron Cloud' THEN 'Digital' ELSE BU_Lookup.BU END AS BU,
+Ass.Product_Class AS Product,
+Commission_Category AS StoSer,
+'Region / GI' AS Segment,
+Revenue_Type AS RNR,
+Product_Revenue_Band AS RevBand,
+Book_to_Bill_Ratio,
+Estimated_Close_to_First_Bill_Date,
+No_of_Billing_Months,
+Month_1,
+Month_2,
+Month_3,
+Month_4,
+Month_5,
+Month_6,
+Month_7,
+Month_8,
+Month_9,
+Month_10,
+Month_11,
+Month_12,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM irm-fin-acct-dp-prod.IYR_Process.B2B_Assumptions_In as Ass LEFT JOIN Country_Lookup on ass.Country = Country_Lookup.Country LEFT JOIN BU_Lookup ON Ass.Product_Class = BU_Lookup.Product
+WHERE Ass.Product_Class <> 'ALM' AND Ass.Product_Class <> 'IMDC' AND Ass.Product_Class <> 'ITRenew'
