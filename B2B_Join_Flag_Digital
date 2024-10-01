@@ -1,0 +1,4 @@
+SELECT B2B.*,
+CASE WHEN UID IN (SELECT DISTINCT UID FROM irm-fin-acct-dp-prod.IYR_Process.E2E_Clean_Digital) AND SAFE_CAST(LEFT(B2B.Stage,1) AS INT) > 4 THEN TRUE ELSE FALSE END AS Join_Flag,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM irm-fin-acct-dp-prod.IYR_Process.B2B_Clean_Digital AS B2B
