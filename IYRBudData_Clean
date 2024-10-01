@@ -1,0 +1,45 @@
+WITH Country_lookup AS (
+SELECT DISTINCT Country,Cluster,Region
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE Country IS NOT NULL
+),
+BU_Lookup AS (
+SELECT DISTINCT Product,BU
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE Product IS NOT NULL),
+ProductCleanse AS (
+  SELECT ProdF,ProdR
+  FROM irm-fin-acct-dp-prod.IYR_Process.CC_Cleanse
+  WHERE ProdF IS NOT NULL AND ProdF <> ''
+)
+SELECT
+CL.Region,
+CL.Cluster,
+Bud.Country,
+Bu_Lookup.BU,
+ProdR AS Product,
+StoSer,
+CASE WHEN Segment = 'Regional' THEN 'Region' ELSE Segment END AS Segment,
+CASE WHEN LOWER(ProductDetail) LIKE '%non-recurring%' THEN 'Non-recurring'
+WHEN LOWER(ProductDetail) LIKE '%recurring%' AND LOWER(ProductDetail) NOT LIKE '%non-recurring%' THEN 'Recurring'
+WHEN StoSer = 'Storage' THEN 'Recurring'
+WHEN StoSer = 'Service' THEN 'Non-recurring' END AS RNR,
+Jan,
+Feb,
+Mar,
+Apr,
+May,
+Jun,
+Jul,
+Aug,
+Sep,
+Oct,
+Nov,
+Dec,
+IFNULL(Jan,0)+IFNULL(Feb,0)+IFNULL(Mar,0)+IFNULL(Apr,0)+IFNULL(May,0)+IFNULL(Jun,0)+IFNULL(Jul,0)+IFNULL(Aug,0)+IFNULL(Sep,0)+IFNULL(Oct,0)+IFNULL(Nov,0)+IFNULL(Dec,0) AS FY,
+ProductDetail,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM irm-fin-acct-dp-prod.IYR_Process.IYRBudData_In AS Bud
+LEFT JOIN Country_lookup AS CL ON Bud.Country = CL.country
+LEFT JOIN ProductCleanse ON Bud.Product = ProductCleanse.ProdF
+LEFT JOIN BU_Lookup ON ProductCleanse.ProdR = BU_Lookup.Product
