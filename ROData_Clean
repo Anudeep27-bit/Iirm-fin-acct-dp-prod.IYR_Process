@@ -1,0 +1,95 @@
+WITH ProductCleanse AS (SELECT DISTINCT ProdF,ProdR
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Cleanse WHERE ProdF IS NOT NULL),
+B2B_Region AS (
+SELECT DISTINCT Region,Cluster,Country
+FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+WHERE Country IS NOT NULL
+),
+BU_Lookup AS (
+  SELECT DISTINCT Product,BU
+  FROM irm-fin-acct-dp-prod.IYR_Process.CC_Lookups
+  WHERE Product IS NOT NULL
+),
+CTE AS (
+SELECT 
+Region AS Region,
+Cluster AS Cluster,
+CASE 
+WHEN ro.Location = 'NA' THEN 'United States'
+WHEN ro.Location = 'United Arab Emirates' THEN 'UAE'
+WHEN ro.Location = 'Indigo HOF' THEN 'UAE' ELSE ro.Location END AS Country,
+BU_Lookup.BU AS BU,
+CASE WHEN ProdF IS NULL THEN ro.Product ELSE ProdR END AS Product,
+ro.Product AS Product_old,
+ro.Function AS Function,
+'Region / GI' AS Segment,
+SAFE_CAST(REPLACE(Jan_2024_Revenue,',','') AS FLOAT64) Jan_2024_Revenue,
+SAFE_CAST(REPLACE(Feb_2024_Revenue,',','') AS FLOAT64) Feb_2024_Revenue,
+SAFE_CAST(REPLACE(Mar_2024_Revenue,',','') AS FLOAT64) Mar_2024_Revenue,
+SAFE_CAST(REPLACE(Apr_2024_Revenue,',','') AS FLOAT64) Apr_2024_Revenue,
+SAFE_CAST(REPLACE(May_2024_Revenue,',','') AS FLOAT64) May_2024_Revenue,
+SAFE_CAST(REPLACE(Jun_2024_Revenue,',','') AS FLOAT64) Jun_2024_Revenue,
+SAFE_CAST(REPLACE(Jul_2024_Revenue,',','') AS FLOAT64) Jul_2024_Revenue,
+SAFE_CAST(REPLACE(Aug_2024_Revenue,',','') AS FLOAT64) Aug_2024_Revenue,
+SAFE_CAST(REPLACE(Sep_2024_Revenue,',','') AS FLOAT64) Sep_2024_Revenue,
+SAFE_CAST(REPLACE(Oct_2024_Revenue,',','') AS FLOAT64) Oct_2024_Revenue,
+SAFE_CAST(REPLACE(Nov_2024_Revenue,',','') AS FLOAT64) Nov_2024_Revenue,
+SAFE_CAST(REPLACE(Dec_2024_Revenue,',','') AS FLOAT64) Dec_2024_Revenue,
+
+SAFE_CAST(REPLACE(Jan_2025_Revenue,',','') AS FLOAT64) Jan_2025_Revenue,
+SAFE_CAST(REPLACE(Feb_2025_Revenue,',','') AS FLOAT64) Feb_2025_Revenue,
+SAFE_CAST(REPLACE(Mar_2025_Revenue,',','') AS FLOAT64) Mar_2025_Revenue,
+SAFE_CAST(REPLACE(Apr_2025_Revenue,',','') AS FLOAT64) Apr_2025_Revenue,
+SAFE_CAST(REPLACE(May_2025_Revenue,',','') AS FLOAT64) May_2025_Revenue,
+SAFE_CAST(REPLACE(Jun_2025_Revenue,',','') AS FLOAT64) Jun_2025_Revenue,
+SAFE_CAST(REPLACE(Jul_2025_Revenue,',','') AS FLOAT64) Jul_2025_Revenue,
+SAFE_CAST(REPLACE(Aug_2025_Revenue,',','') AS FLOAT64) Aug_2025_Revenue,
+SAFE_CAST(REPLACE(Sep_2025_Revenue,',','') AS FLOAT64) Sep_2025_Revenue,
+SAFE_CAST(REPLACE(Oct_2025_Revenue,',','') AS FLOAT64) Oct_2025_Revenue,
+SAFE_CAST(REPLACE(Nov_2025_Revenue,',','') AS FLOAT64) Nov_2025_Revenue,
+SAFE_CAST(REPLACE(Dec_2025_Revenue,',','') AS FLOAT64) Dec_2025_Revenue
+FROM irm-fin-acct-dp-prod.IYR_Process.ROData_In AS ro LEFT JOIN ProductCleanse AS pc ON ro.Product = pc.ProdF LEFT JOIN BU_Lookup ON CASE WHEN ProdF IS NULL THEN ro.Product ELSE ProdR END = BU_Lookup.Product
+WHERE Walks_Mapping LIKE '%IYR%')
+SELECT
+B2B_Region.Region,
+B2B_Region.Cluster,
+CTE.Country,
+BU,
+Product,
+Product_old AS Product_SubCategory,
+Function,
+Segment,
+CASE
+WHEN LOWER(Product_old) LIKE '%non-recurring%' THEN 'Non-recurring'
+WHEN LOWER(Product_old) LIKE '%recurring%' AND LOWER(Product_old) NOT LIKE '%non-recurring%' THEN 'Recurring'
+WHEN Lower(Function) = 'service' THEN 'Non-recurring'
+WHEN Lower(Function) = 'storage' THEN 'Recurring'
+ELSE NULL END AS RNR, 
+Jan_2024_Revenue,
+Feb_2024_Revenue,
+Mar_2024_Revenue,
+Apr_2024_Revenue,
+May_2024_Revenue,
+Jun_2024_Revenue,
+Jul_2024_Revenue,
+Aug_2024_Revenue,
+Sep_2024_Revenue,
+Oct_2024_Revenue,
+Nov_2024_Revenue,
+Dec_2024_Revenue,
+IFNULL(Jan_2024_Revenue,0)+IFNULL(Feb_2024_Revenue,0)+IFNULL(Mar_2024_Revenue,0)+IFNULL(Apr_2024_Revenue,0)+IFNULL(May_2024_Revenue,0)+IFNULL(Jun_2024_Revenue,0)+IFNULL(Jul_2024_Revenue,0)+IFNULL(Aug_2024_Revenue,0)+IFNULL(Sep_2024_Revenue,0)+IFNULL(Oct_2024_Revenue,0)+IFNULL(Nov_2024_Revenue,0)+IFNULL(Dec_2024_Revenue,0) AS FY_2024,
+Jan_2025_Revenue,
+Feb_2025_Revenue,
+Mar_2025_Revenue,
+Apr_2025_Revenue,
+May_2025_Revenue,
+Jun_2025_Revenue,
+Jul_2025_Revenue,
+Aug_2025_Revenue,
+Sep_2025_Revenue,
+Oct_2025_Revenue,
+Nov_2025_Revenue,
+Dec_2025_Revenue,
+IFNULL(Jan_2025_Revenue,0)+IFNULL(Feb_2025_Revenue,0)+IFNULL(Mar_2025_Revenue,0)+IFNULL(Apr_2025_Revenue,0)+IFNULL(May_2025_Revenue,0)+IFNULL(Jun_2025_Revenue,0)+IFNULL(Jul_2025_Revenue,0)+IFNULL(Aug_2025_Revenue,0)+IFNULL(Sep_2025_Revenue,0)+IFNULL(Oct_2025_Revenue,0)+IFNULL(Nov_2025_Revenue,0)+IFNULL(Dec_2025_Revenue,0) AS FY_2025,
+CURRENT_TIMESTAMP() AS Time_Stamp
+FROM CTE LEFT JOIN B2B_Region ON CTE.Country = B2B_Region.Country
